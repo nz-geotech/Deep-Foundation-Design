@@ -909,4 +909,13 @@ document.addEventListener('input',event=>{
 document.addEventListener('change',event=>{
  if(event.target?.id==='vm2upliftDemand'||event.target?.closest?.('#capacitydetail'))requestAnimationFrame(updateResultsSummary);
 });
+// V8.45: the initial page calculation occurs above the results-chart wrapper.
+// Initialise the summary and chart on first load regardless of the default
+// calculation reference (TP or B1/VM2); do not require switching methods.
+if(document.readyState==='loading'){
+ document.addEventListener('DOMContentLoaded',()=>calc(),{once:true});
+}else{
+ calc();
+}
+
 </script></body></html>
