@@ -207,7 +207,7 @@ sub{font-size:0.74em;vertical-align:baseline;position:relative;bottom:-0.27em;li
 
 .tp-breakout-table th,.tp-breakout-table td{text-align:left!important;}
 
-/* V8.56: keep the soil-profile final heading compact on exactly two lines. */
+/* V8.57: keep the soil-profile final heading compact on exactly two lines. */
 .soil-profile-scroll th:last-child{white-space:nowrap!important;width:145px;max-width:145px;min-width:145px;font-size:11px;letter-spacing:-.3px;line-height:1.35}
 </style><style id="group-plan-v713-styles">
 .group-alt-row{margin:12px 0 8px;display:none}
@@ -757,9 +757,34 @@ function foundationFileSnapshot(){
   toePressureOverrides, toePressureOverrideEnabled,shaftFssOverrides,shaftFsuOverrides,shaftOverrideEnabled,
   toePhiInput,toeSuInput,tpFoundingLayerLabelOverride,tpToeGammaOverride,vm2ToeBehaviourOverride,vm2ToePhiOverride,vm2ToeSuOverride,vm2ToeGammaOverride,vm2ToeDOverride,vm2FoundingLayerLabelOverride,vm2UserBaseEnabled,vm2UserBaseValue,vm2ConcreteFcu,appliedCompressionLoad,vm2UpliftPhiW,tpUpliftPhiPc,tpUpliftPhiW,tpUpliftPhiTS,tpUpliftDemand,activeTab:Math.max(0,P.findIndex(p=>p.classList.contains('active')))};
 }
-function saveFoundationFile(){
- try{const data=JSON.stringify(foundationFileSnapshot(),null,2),blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
-  a.href=url;a.download='deep_foundation_design_'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);foundationFileStatus('Design file saved as JSON.');
+async function saveFoundationFile(){
+ const defaultName='deep_foundation_design_'+new Date().toISOString().slice(0,10)+'.json';
+ try{
+  const data=JSON.stringify(foundationFileSnapshot(),null,2);
+  // Supported Chromium browsers: native Save As dialog for both filename and location.
+  if(typeof window.showSaveFilePicker==='function'){
+   try{
+    const handle=await window.showSaveFilePicker({suggestedName:defaultName,types:[{description:'JSON design file',accept:{'application/json':['.json']}}]});
+    const writable=await handle.createWritable();
+    await writable.write(data);await writable.close();
+    foundationFileStatus('Saved '+handle.name+'.');return;
+   }catch(err){
+    if(err.name==='AbortError'){foundationFileStatus('Save cancelled.');return;}
+    // SecurityError / unsupported context: fall through to browser download.
+    if(err.name!=='SecurityError'&&err.name!=='NotAllowedError'&&err.name!=='TypeError')throw err;
+   }
+  }
+  // Fallback for browsers without File System Access API: ask for a filename;
+  // the browser's download settings determine whether a location chooser appears.
+  const filename=window.prompt('Save design file as (filename):',defaultName);
+  if(filename===null){foundationFileStatus('Save cancelled.');return;}
+  let clean=filename.trim().replace(/[\\/:*?"<>|]/g,'_');
+  if(!clean){foundationFileStatus('Save cancelled: filename is empty.');return;}
+  if(!/\.json$/i.test(clean))clean+='.json';
+  const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+  link.href=url;link.download=clean;document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  foundationFileStatus('Download requested for '+clean+'. Choose location if your browser prompts.');
  }catch(err){foundationFileStatus('Unable to save file: '+err.message)}
 }
 function restoreFoundationFile(data){
@@ -1028,7 +1053,7 @@ document.addEventListener('input',event=>{
 document.addEventListener('change',event=>{
  if(event.target?.id==='vm2upliftDemand'||event.target?.closest?.('#capacitydetail'))requestAnimationFrame(updateResultsSummary);
 });
-// V8.56: the initial page calculation occurs above the results-chart wrapper.
+// V8.57: the initial page calculation occurs above the results-chart wrapper.
 // Initialise the summary and chart on first load regardless of the default
 // calculation reference (TP or B1/VM2); do not require switching methods.
 if(document.readyState==='loading'){
